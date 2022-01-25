@@ -2,6 +2,7 @@
 .DS_Store
 
 *.dy
-~example.dy
+!example.dy
 *.png
+!example.png
 

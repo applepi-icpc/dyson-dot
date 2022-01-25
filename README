@@ -4,5 +4,5 @@ See example.dy and code for details.
 
 Usage:
 
-cat example.dy | python3 dyson.py | dot -Tpng -o result.png
+cat example.dy | python3 dyson.py | dot -Tpng -o example.png
 
