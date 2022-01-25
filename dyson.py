@@ -1,32 +1,3 @@
-"""Syntax:
-def glass = 玻璃
-def ti = 钛
-def water = 水
-def ch4 = 可燃冰
-def h = 氢
-def gs = 光栅石
-def cpu = 处理器
-def tiglass = 钛化玻璃
-def grap = 石墨烯
-def kx = 卡西米尔晶体
-def df = 位面过滤器
-def qc = 量子芯片
-
-machine made = 制造3, 1.5
-machine che = 化工, 1
-
-acc z3 = 增强剂3, 1.25, 0.01666667
-
-process glass 2, ti 2, water 2 | made 5 | tiglass 2 @ z3
-process ch4 2, h -1 | che 2 | grap 2 @ z3
-process gs 4, grap 2, h 12 | made 4 | kx 1 @ z3
-process tiglass 2, kx 1 | made 12 | df 1 @ z3
-process df 2, cpu 2 | made 6 | qc 1 @ z3
-
-source glass, ti, water, ch4, h, gs, cpu
-product qc 1
-"""
-
 import typing as T
 from dataclasses import dataclass
 from collections import deque
