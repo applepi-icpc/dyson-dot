@@ -1,0 +1,8 @@
+You need install graphviz to convert generated dot to png or any format you like.
+
+See example.dy and code for details.
+
+Usage:
+
+cat example.dy | python3 dyson.py | dot -Tpng -o result.png
+
