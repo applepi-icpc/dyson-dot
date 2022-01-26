@@ -1,6 +1,8 @@
+This script analyses your production line and produce a production scheme in dot language.
+
 You need install graphviz to convert generated dot to png or any format you like.
 
-See example.dy and code for details.
+See examples and code for details.
 
 Usage:
 
