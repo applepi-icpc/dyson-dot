@@ -466,7 +466,7 @@ class Dyson:
             label_detail_part = [
                 "{:.6g}/s".format(def_.actual_rate),
             ]
-            if def_.process is not None:
+            if (not def_.is_source) and def_.process is not None:
                 process = self._process[def_.process]
                 machine = self._machine[process.machine]
                 label_caption_part.append("{}×{}".format(
