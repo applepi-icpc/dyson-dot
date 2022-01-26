@@ -1,0 +1,51 @@
+def glass = 玻璃
+def iron = 铁块
+def copper = 铜块
+def ch4 = 可燃冰
+def h = 氢
+def gs = 光栅石
+def prism = 棱镜
+def pcb = 电路板
+def photonmerger = 光子合并器
+def graphene = 石墨烯
+def solarsail = 太阳帆
+def ti = 钛块
+def tialloy = 钛合金
+def si = 硅板
+def cs = 刺笋结晶
+def ctube = 碳纳米管
+def supermagneticfield = 超级磁场环
+def electurbine = 电磁涡轮
+def magnet = 磁铁
+def graphite = 高能石墨
+def hh = 重氢
+def dstick = 氘核燃料棒
+def qc = 量子芯片
+def cpu = 处理器
+def framematerial = 框架材料
+def dysonmodule = 戴森球组件
+def rocket = 小型运载火箭
+
+machine made = 制造台 Mk. III, 1.5
+machine che = 化工厂, 1
+
+acc z3 = 增产剂 III, 1.25, 0.01666667
+
+process glass 3 | made 2 | prism 2 @ z3
+process iron 2, copper 1 | made 1 | pcb 2 @ z3
+process prism 2, pcb 1 | made 3 | photonmerger 1 @ z3
+# process gs 1, pcb 1 | made 3 | photonmerger 1 @ z3
+process ch4 2, h -1 | che 2 | graphene 2 @ z3
+process graphene 1, photonmerger 1 | made 4 | solarsail 2 @ z3
+
+process electurbine 2, magnet 3, graphite 1 | made 3 | supermagneticfield 1 @ z3
+process tialloy 1, hh 20, supermagneticfield 1 | made 12 | dstick 2 @ z3
+
+process graphene 3, ti 1 | che 4 | ctube 2 @ z3
+# process cs 2 | che 4 | ctube 2 @ z3
+process ctube 4, tialloy 1, si 1 | made 6 | framematerial 1 @ z3
+process framematerial 3, solarsail 3, cpu 3 | made 8 | dysonmodule 1 @ z3
+process dysonmodule 2, dstick 4, qc 2 | made 6 | rocket 1 @ z3
+
+source glass, iron, copper, ch4, h, ti, tialloy, si, cs, qc, electurbine, magnet, graphite, hh, cpu
+product rocket 2, solarsail 6

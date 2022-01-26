@@ -1,0 +1,23 @@
+def coal = 煤
+def dia = 金刚石
+def j = 金伯利矿石
+def ctube = 碳纳米管
+def cs = 刺笋结晶
+def z1 = 增产剂 I
+def z2 = 增产剂 II
+def z3 = 增产剂 III
+
+machine made = 制造台 Mk. III, 1.5
+machine che = 化工厂, 1
+machine sme = 位面熔炉, 2
+
+acc z3 = 增产剂 III, 1.25, 0.01666667
+
+process cs 2 | che 4 | ctube 2 @ z3
+process j 1 | sme 1.5 | dia 2 @ z3
+process coal 1 | made 0.5 | z1 1 @ z3
+process z1 2, dia 1 | made 1 | z2 1 @ z3
+process z2 2, ctube 1 | made 2 | z3 1 @ z3
+
+source coal, j, cs
+product z3 12

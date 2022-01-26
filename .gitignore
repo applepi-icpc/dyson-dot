@@ -1,8 +1,12 @@
 **/.DS_Store
 .DS_Store
 
-*.dy
-!example.dy
+*.txt
+!example_1.txt
+!example_2.txt
+!example_3.txt
 *.png
-!example.png
+!example_1.png
+!example_2.png
+!example_3.png
 

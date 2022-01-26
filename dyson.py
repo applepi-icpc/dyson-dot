@@ -39,6 +39,7 @@ class Def:
     max_rate_from_machine: T.Optional[float] = 0  # None means infinite
     max_rate_from_consumer: T.Optional[float] = 0  # None means infinite
     actual_rate: float = 0
+    succ_output_rate: float = 0
     state: int = 0
     # state == 1: max_rate_from_material is minimum, machine will wait for material (priority 1)
     # state == 2: max_rate_from_machine is minimum, machine will always be working (priority 0)
@@ -126,6 +127,10 @@ class Dyson:
         if len(s) == 0:
             return
 
+        elif s.startswith('#'):
+            # comment
+            return
+
         elif s.startswith('def '):
             ss = strip_prefix(s, 'def ')
             sym, name = strip_split_2(
@@ -146,6 +151,10 @@ class Dyson:
                     raise ValueError(
                         "Undefined error (3) at line {}: {} not defined".
                         format(lineno, sym))
+                if self._def[sym].is_product:
+                    raise ValueError(
+                        "Conflict error (4) at line {}: {} is already a product"
+                        .format(lineno, sym))
                 self._def[sym].is_source = True
 
         elif s.startswith('product '):
@@ -154,12 +163,16 @@ class Dyson:
             for pair in pairs:
                 sym, product_need = name_num_pair(
                     pair,
-                    "Syntax error (4) at line {}: bad product definition".
+                    "Syntax error (5) at line {}: bad product definition".
                     format(lineno))
                 if not sym in self._def:
                     raise ValueError(
-                        "Undefined error (5) at line {}: {} not defined".
+                        "Undefined error (6) at line {}: {} not defined".
                         format(lineno, sym))
+                if self._def[sym].is_source:
+                    raise ValueError(
+                        "Conflict error (7) at line {}: {} is already a source"
+                        .format(lineno, sym))
                 self._def[sym].is_product = True
                 self._def[sym].product_need = product_need
 
@@ -167,12 +180,12 @@ class Dyson:
             ss = strip_prefix(s, 'machine ')
             sym, name, time_factor_str = strip_split_3(
                 ss, "=", ",",
-                "Syntax error (7) at line {}: bad machine definition".format(
+                "Syntax error (8) at line {}: bad machine definition".format(
                     lineno))
             time_factor = float(time_factor_str)
             if sym in self._machine:
                 raise ValueError(
-                    "Redefined error (8) at line {}: {} already defined".
+                    "Redefined error (9) at line {}: {} already defined".
                     format(lineno, sym))
             self._machine[sym] = Machine(name, time_factor)
 
@@ -180,17 +193,17 @@ class Dyson:
             ss = strip_prefix(s, 'acc ')
             sym, parts = strip_split_2(
                 ss, "=",
-                "Syntax error (8) at line {}: bad accelerator definition".
+                "Syntax error (10) at line {}: bad accelerator definition".
                 format(lineno))
             name, acc_factor_str, consume_factor_str = strip_split_3(
                 parts, ",", ",",
-                "Syntax error (9) at line {}: bad accelerator definition".
+                "Syntax error (11) at line {}: bad accelerator definition".
                 format(lineno))
             acc_factor = float(acc_factor_str)
             consume_factor = float(consume_factor_str)
             if sym in self._acc:
                 raise ValueError(
-                    "Redefined error (10) at line {}: {} already defined".
+                    "Redefined error (12) at line {}: {} already defined".
                     format(lineno, sym))
             self._acc[sym] = Accelerator(name, acc_factor, consume_factor)
 
@@ -198,7 +211,7 @@ class Dyson:
             ss = strip_prefix(s, 'process ')
             material_part, machine_pair, produce_part = strip_split_3(
                 ss, "|", "|",
-                "Syntax error (11) at line {}: bad process definition".format(
+                "Syntax error (13) at line {}: bad process definition".format(
                     lineno))
 
             material_pairs = strip_split(material_part, ",")
@@ -206,45 +219,45 @@ class Dyson:
             for pair in material_pairs:
                 sym, num = name_num_pair(
                     pair,
-                    "Syntax error (12) at line {}: bad process definition".
+                    "Syntax error (14) at line {}: bad process definition".
                     format(lineno))
                 if not sym in self._def:
                     raise ValueError(
-                        "Undefined error (13) at line {}: {} not defined".
+                        "Undefined error (15) at line {}: {} not defined".
                         format(lineno, sym))
                 materials.append((sym, num))
 
             machine_sym, time = name_num_pair(
                 machine_pair,
-                "Syntax error (14) at line {}: bad process definition".format(
+                "Syntax error (16) at line {}: bad process definition".format(
                     lineno))
             if not machine_sym in self._machine:
                 raise ValueError(
-                    "Undefined error (15) at line {}: {} not defined".format(
+                    "Undefined error (17) at line {}: {} not defined".format(
                         lineno, machine_sym))
 
             acc_sym = None
             if '@' in produce_part:
                 produce_part, acc_sym = strip_split_2(
                     produce_part, '@',
-                    "Syntax error (16) at line {}: bad process definition".
+                    "Syntax error (18) at line {}: bad process definition".
                     format(lineno))
                 if not acc_sym in self._acc:
                     raise ValueError(
-                        "Undefined error (17) at line {}: {} not defined".
+                        "Undefined error (19) at line {}: {} not defined".
                         format(lineno, acc_sym))
 
             product_sym, produce_rate = name_num_pair(
                 produce_part,
-                "Syntax error (18) at line {}: bad process definition".format(
+                "Syntax error (20) at line {}: bad process definition".format(
                     lineno))
             if not product_sym in self._def:
                 raise ValueError(
-                    "Undefined error (19) at line {}: {} not defined".format(
+                    "Undefined error (21) at line {}: {} not defined".format(
                         lineno, product_sym))
             if self._def[product_sym].process is not None:
                 raise ValueError(
-                    "Redefined error (20) at line {}: process of material {} is already defined"
+                    "Redefined error (22) at line {}: process of material {} is already defined"
                     .format(lineno, product_sym))
             process_index = len(self._process)
             self._def[product_sym].process = process_index
@@ -253,7 +266,7 @@ class Dyson:
 
         else:
             raise ValueError(
-                "Syntax error (21) at line {}: unknown command".format(lineno))
+                "Syntax error (23) at line {}: unknown command".format(lineno))
 
     def _calc_real_produce_rate(self, process: Process):
         real_produce_rate = process.produce_rate
@@ -274,7 +287,7 @@ class Dyson:
 
             def_ = self._def[sym]
             def_.visited = True
-            if def_.process is None:
+            if def_.process is None or def_.is_source:
                 instack.remove(sym)
                 return
 
@@ -293,9 +306,14 @@ class Dyson:
 
             instack.remove(sym)
 
+        no_product = True
         for sym, def_ in self._def.items():
             if def_.is_product:
                 _visitor(sym)
+                no_product = False
+
+        if no_product:
+            raise ValueError("no product indicated")
 
     def _bfs_1(self):
         q = deque()  # type: T.Deque[str]
@@ -304,7 +322,9 @@ class Dyson:
         for sym, def_ in self._def.items():
             if def_.is_product:
                 def_.need = def_.product_need
-                q.append(sym)
+                if (not sym in self._successor) or len(
+                        self._successor[sym]) == 0:
+                    q.append(sym)
 
         while len(q) > 0:
             sym = q.popleft()
@@ -353,11 +373,11 @@ class Dyson:
             sym = q.popleft()
             def_ = self._def[sym]
 
-            if def_.is_product:
-                continue
-
             max_p_rate = min_with_none(def_.max_rate_from_material,
                                        def_.max_rate_from_machine)
+
+            if not sym in self._successor:
+                continue
 
             for succ_sym, succ_z in self._successor[sym]:
                 succ_def = self._def[succ_sym]
@@ -380,7 +400,9 @@ class Dyson:
         for sym, def_ in self._def.items():
             if def_.is_product:
                 def_.max_rate_from_consumer = None
-                q.append(sym)
+                if (not sym in self._successor) or len(
+                        self._successor[sym]) == 0:
+                    q.append(sym)
 
         while len(q) > 0:
             sym = q.popleft()
@@ -407,7 +429,8 @@ class Dyson:
             for pred_sym, pred_need in process.materials:
                 pred_def = self._def[pred_sym]
                 z = pred_need / real_produce_rate
-                pred_def.max_rate_from_consumer += def_.actual_rate * z
+                if pred_def.max_rate_from_consumer is not None:
+                    pred_def.max_rate_from_consumer += def_.actual_rate * z
 
                 if not pred_sym in successor_visited:
                     successor_visited[pred_sym] = 0
@@ -479,22 +502,29 @@ class Dyson:
                     parts.append('style = "filled"')
                     parts.append('fillcolor = "greenyellow"')
 
-            print('    {} [{}]'.format(sym, ", ".join(parts)))
+            print('    def_{} [{}]'.format(sym, ", ".join(parts)))
+
+        print(
+            '    t [label = "产物", shape = "plaintext", fontcolor = "violetred"]'
+        )
 
         for sym, def_ in self._def.items():
             if not def_.visited:
                 continue
-            if def_.process is None:
+            if def_.process is None or def_.is_source:
                 continue
             process = self._process[def_.process]
 
             real_produce_rate = self._calc_real_produce_rate(process)
             go_sum = 0
             for pred_sym, pred_need in process.materials:
+                pred_def = self._def[pred_sym]
                 z = pred_need / real_produce_rate
                 actual_go = def_.actual_rate * z
-                print('    {} -> {} [label = "{:.6g}/s"]'.format(
-                    pred_sym, sym, actual_go))
+                pred_def.succ_output_rate += actual_go
+                print(
+                    '    def_{} -> def_{} [label = "{:.6g}/s", arrowsize = 0.5]'
+                    .format(pred_sym, sym, actual_go))
                 if actual_go > 0:
                     go_sum += actual_go
 
@@ -512,16 +542,23 @@ class Dyson:
 
         for acc_sym, r in acc_point.items():
             print(
-                '    {} [label = <{}<BR /><FONT POINT-SIZE="10">{}, accelerator</FONT>>, shape = "box", style = "filled", fillcolor = "khaki"]'
+                '    acc_{} [label = <{}<BR /><FONT POINT-SIZE="10">{}, accelerator</FONT>>, shape = "box", style = "filled", fillcolor = "khaki"]'
                 .format(acc_sym, r["name"], "{:.6g}/s".format(r["total"])))
 
         for r in acc_record:
             print(
-                '    {} -> {} [label = "{:.6g}/s", style = "dotted", color = "darkgoldenrod", fontcolor = "darkgoldenrod"]'
+                '    acc_{} -> def_{} [label = "{:.6g}/s", style = "dotted", color = "darkgoldenrod", fontcolor = "darkgoldenrod", arrowsize = 0.5]'
                 .format(r["acc"], r["product"], r["rate"]))
 
-        print('    {{ rank = "same"; {} }}'.format(", ".join(sources)))
-        print('    {{ rank = "same"; {} }}'.format(", ".join(products)))
+        for sym in products:
+            def_ = self._def[sym]
+            product_rate = def_.actual_rate - def_.succ_output_rate
+            print(
+                '    def_{} -> t [label = "{:.6g}/s", style = "dotted", color = "violetred", fontcolor = "violetred", arrowsize = 0.5]'
+                .format(sym, product_rate))
+
+        print('    {{ rank = "same"; {} }}'.format(", ".join(
+            ["def_{}".format(x) for x in sources])))
 
         print("}")
 
