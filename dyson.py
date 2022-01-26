@@ -45,6 +45,19 @@ class Def:
     # state == 3: max_rate_from_consumer is minimum, machine will stuck eventually (priority 2)
 
 
+def state_str(state: int):
+    if state == 0:
+        return "unknown"
+    elif state == 1:
+        return "wait_material"
+    elif state == 2:
+        return "always_running"
+    elif state == 3:
+        return "wait_consumption"
+    else:
+        return "invalid"
+
+
 def strip_prefix(s: str, prefix: str) -> str:
     if not s.startswith(prefix):
         raise ValueError("`{}` does not start with `{}`".format(s, prefix))
@@ -425,25 +438,47 @@ class Dyson:
         for sym, def_ in self._def.items():
             if not def_.visited:
                 continue
-            label_parts = [def_.name, "{:.6g}/s".format(def_.actual_rate)]
+
+            label_caption_part = [def_.name]
+            label_detail_part = [
+                "{:.6g}/s".format(def_.actual_rate),
+            ]
             if def_.process is not None:
                 process = self._process[def_.process]
                 machine = self._machine[process.machine]
-                label_parts.append("{}*{}".format(machine.name,
-                                                  def_.machine_count))
-            parts = ['label = "{}"'.format(", ".join(label_parts))]
+                label_caption_part.append("{}×{}".format(
+                    machine.name, def_.machine_count))
+            if def_.is_source:
+                label_detail_part.append("source")
+            else:
+                label_detail_part.append(state_str(def_.state))
+            if def_.is_product:
+                label_detail_part.append("product")
+            label = '<{}<BR /><FONT POINT-SIZE="10">{}</FONT>>'.format(
+                ", ".join(label_caption_part), ", ".join(label_detail_part))
+
+            parts = ['label = {}'.format(label)]
             if def_.is_source:
                 parts.append('shape = "octagon"')
                 parts.append('style = "filled"')
-                parts.append('fillcolor = "lightpink"')
+                parts.append('fillcolor = "green3"')
                 sources.append(sym)
-            elif def_.is_product:
-                parts.append('shape = "doubleoctagon"')
-                parts.append('style = "filled"')
-                parts.append('fillcolor = "lightskyblue"')
-                products.append(sym)
             else:
-                parts.append('shape = "box"')
+                if def_.is_product:
+                    parts.append('shape = "doubleoctagon"')
+                    products.append(sym)
+                else:
+                    parts.append('shape = "box"')
+                if def_.state == 1:
+                    parts.append('style = "filled"')
+                    parts.append('fillcolor = "lightpink"')
+                elif def_.state == 2:
+                    parts.append('style = "filled"')
+                    parts.append('fillcolor = "lightskyblue"')
+                elif def_.state == 3:
+                    parts.append('style = "filled"')
+                    parts.append('fillcolor = "greenyellow"')
+
             print('    {} [{}]'.format(sym, ", ".join(parts)))
 
         for sym, def_ in self._def.items():
@@ -476,10 +511,9 @@ class Dyson:
                 acc_point[process.acc]["total"] += acc_rate
 
         for acc_sym, r in acc_point.items():
-            parts = [r["name"], "{:.6g}/s".format(r["total"])]
             print(
-                '    {} [label = "{}", shape = "box", style = "filled", fillcolor = "khaki"]'
-                .format(acc_sym, ", ".join(parts)))
+                '    {} [label = <{}<BR /><FONT POINT-SIZE="10">{}, accelerator</FONT>>, shape = "box", style = "filled", fillcolor = "khaki"]'
+                .format(acc_sym, r["name"], "{:.6g}/s".format(r["total"])))
 
         for r in acc_record:
             print(
