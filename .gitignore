@@ -5,8 +5,10 @@
 !example_1.txt
 !example_2.txt
 !example_3.txt
+!example_4.txt
 *.png
 !example_1.png
 !example_2.png
 !example_3.png
+!example_4.png
 

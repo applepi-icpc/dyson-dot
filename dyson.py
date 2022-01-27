@@ -1,5 +1,5 @@
 import typing as T
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from collections import deque
 import math
 import sys
@@ -16,7 +16,8 @@ class Machine(T.NamedTuple):
     time_factor: float
 
 
-class Process(T.NamedTuple):
+@dataclass
+class Process:
     materials: T.List[T.Tuple[str, float]]
     machine: str
     time: float
@@ -27,6 +28,7 @@ class Process(T.NamedTuple):
 @dataclass
 class Def:
     name: str
+    original_sym: str
     is_source: bool = False
     is_product: bool = False
     product_need: float = 0
@@ -119,6 +121,12 @@ def equal_with_none(a: T.Optional[float], b: T.Optional[float]):
     return abs(a - b) < 1e-8
 
 
+def decomment(s: str) -> str:
+    if '#' in s:
+        return s[:s.index('#')]
+    return s
+
+
 class Dyson:
     def __init__(self):
         self._def = {}  # type: T.Dict[str, Def]
@@ -130,13 +138,9 @@ class Dyson:
         self._real_source = []  # type: T.List[str]
 
     def eval_line(self, s: str, lineno: int):
-        s = s.strip()
+        s = decomment(s).strip()
 
         if len(s) == 0:
-            return
-
-        elif s.startswith('#'):
-            # comment
             return
 
         elif s.startswith('def '):
@@ -149,7 +153,11 @@ class Dyson:
                 raise ValueError(
                     "Redefined error (2) at line {}: {} already defined".
                     format(lineno, sym))
-            self._def[sym] = Def(name)
+            if sym.startswith("_"):
+                raise ValueError(
+                    "Bad symbol (22) at line {}: symbol cannot begin with underline"
+                    .format(lineno))
+            self._def[sym] = Def(name=name, original_sym=sym)
 
         elif s.startswith('source '):
             ss = strip_prefix(s, 'source ')
@@ -283,7 +291,7 @@ class Dyson:
             real_produce_rate *= acc.acc_factor
         return real_produce_rate
 
-    def _check_loop(self):
+    def _dfs_check_loop(self):
         instack = set()  # type: T.Set[str]
         visited = set()  # type: T.Set[str]
 
@@ -294,22 +302,17 @@ class Dyson:
             visited.add(sym)
 
             def_ = self._def[sym]
-            def_.visited = True
             if def_.process is None or def_.is_source:
                 instack.remove(sym)
                 return
 
             process = self._process[def_.process]
-            real_produce_rate = self._calc_real_produce_rate(process)
 
             for pred_sym, pred_need in process.materials:
-                z = pred_need / real_produce_rate
                 if pred_sym in instack:
                     raise ValueError(
                         "loop detected at symbol {}".format(pred_sym))
-                if not pred_sym in self._successor:
-                    self._successor[pred_sym] = []
-                self._successor[pred_sym].append((sym, z))
+
                 _visitor(pred_sym)
 
             instack.remove(sym)
@@ -322,6 +325,71 @@ class Dyson:
 
         if no_product:
             raise ValueError("no product indicated")
+
+    def _clone_def(self, sym: str, new_sym: str, new_name: str) -> Def:
+        def_ = self._def[sym]
+        new_def = replace(def_, name=new_name, is_product=False)
+
+        if def_.process is not None:
+            process = self._process[def_.process]
+            new_process = replace(process, materials=process.materials.copy())
+            new_process_id = len(self._process)
+            self._process.append(new_process)
+            new_def.process = new_process_id
+
+        assert not new_sym in self._def
+        self._def[new_sym] = new_def
+        return new_def
+
+    def _dfs_split(self):
+        split_count = {}  # type: T.Dict[str, int]
+
+        def _visitor(sym: str):
+            def_ = self._def[sym]
+            def_.visited = True
+            if def_.process is None or def_.is_source:
+                return
+
+            process = self._process[def_.process]
+            real_produce_rate = self._calc_real_produce_rate(process)
+
+            for k, (pred_sym, pred_need) in enumerate(process.materials):
+                pred_def = self._def[pred_sym]
+
+                if pred_def.is_source:
+                    # not split
+                    new_pred_sym = pred_sym
+
+                else:
+                    original_sym = pred_def.original_sym
+                    if not original_sym in split_count:
+                        split_count[original_sym] = 0
+                    this_count = split_count[original_sym]
+                    split_count[original_sym] += 1
+                    new_pred_sym = "_{}_{}".format(original_sym, this_count)
+                    new_pred_name = pred_def.name
+                    if this_count > 0:
+                        new_pred_name = "{} ({})".format(
+                            pred_def.name, this_count + 1)
+
+                    new_pred_def = self._clone_def(pred_sym, new_pred_sym,
+                                                   new_pred_name)
+                    process.materials[k] = (new_pred_sym, pred_need)
+
+                if not new_pred_sym in self._successor:
+                    self._successor[new_pred_sym] = []
+                z = pred_need / real_produce_rate
+                self._successor[new_pred_sym].append((sym, z))
+
+                _visitor(new_pred_sym)
+
+        target = []
+        for sym, def_ in self._def.items():
+            if def_.is_product:
+                target.append(sym)
+
+        for sym in target:
+            _visitor(sym)
 
     def _bfs_1(self):
         q = deque()  # type: T.Deque[str]
@@ -469,7 +537,8 @@ class Dyson:
                     q.append(pred_sym)
 
     def analyze(self):
-        self._check_loop()
+        self._dfs_check_loop()
+        self._dfs_split()
         self._bfs_1()
         self._bfs_2()
         self._bfs_3()
@@ -485,6 +554,7 @@ class Dyson:
         products = []
 
         print("digraph g {")
+        print('    splines = "true"')
         print('    rankdir = "LR"')
 
         for sym, def_ in self._def.items():
@@ -493,7 +563,7 @@ class Dyson:
 
             label_caption_part = [def_.name]
             label_detail_part = [
-                "{:.6g}/s".format(def_.actual_rate),
+                "{:.4g}/s".format(def_.actual_rate),
             ]
             if (not def_.is_source) and def_.process is not None:
                 process = self._process[def_.process]
@@ -552,7 +622,7 @@ class Dyson:
                 actual_go = def_.actual_rate * z
                 pred_def.succ_output_rate += actual_go
                 print(
-                    '    def_{} -> def_{} [label = "{:.6g}/s", arrowsize = 0.5]'
+                    '    def_{} -> def_{} [label = "{:.4g}/s", arrowsize = 0.5]'
                     .format(pred_sym, sym, actual_go))
                 if actual_go > 0:
                     go_sum += actual_go
@@ -572,18 +642,18 @@ class Dyson:
         for acc_sym, r in acc_point.items():
             print(
                 '    acc_{} [label = <{}<BR /><FONT POINT-SIZE="10">{}, accelerator</FONT>>, shape = "box", style = "filled", fillcolor = "khaki"]'
-                .format(acc_sym, r["name"], "{:.6g}/s".format(r["total"])))
+                .format(acc_sym, r["name"], "{:.4g}/s".format(r["total"])))
 
         for r in acc_record:
             print(
-                '    acc_{} -> def_{} [label = "{:.6g}/s", style = "dotted", color = "darkgoldenrod", fontcolor = "darkgoldenrod", arrowsize = 0.5]'
+                '    acc_{} -> def_{} [label = "{:.4g}/s", style = "dotted", color = "darkgoldenrod", fontcolor = "darkgoldenrod", arrowsize = 0.5]'
                 .format(r["acc"], r["product"], r["rate"]))
 
         for sym in products:
             def_ = self._def[sym]
             product_rate = def_.actual_rate - def_.succ_output_rate
             print(
-                '    def_{} -> t [label = "{:.6g}/s", style = "dotted", color = "violetred", fontcolor = "violetred", arrowsize = 0.5]'
+                '    def_{} -> t [label = "{:.4g}/s", style = "dotted", color = "violetred", fontcolor = "violetred", arrowsize = 0.5]'
                 .format(sym, product_rate))
 
         print('    {{ rank = "same"; {} }}'.format(", ".join(

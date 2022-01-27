@@ -34,18 +34,23 @@ acc z3 = 增产剂 III, 1.25, 0.01666667
 process glass 3 | made 2 | prism 2 @ z3
 process iron 2, copper 1 | made 1 | pcb 2 @ z3
 process prism 2, pcb 1 | made 3 | photonmerger 1 @ z3
-# process gs 1, pcb 1 | made 3 | photonmerger 1 @ z3
 process ch4 2, h -1 | che 2 | graphene 2 @ z3
-process graphene 1, photonmerger 1 | made 4 | solarsail 2 @ z3
 
 process electurbine 2, magnet 3, graphite 1 | made 3 | supermagneticfield 1 @ z3
 process tialloy 1, hh 20, supermagneticfield 1 | made 12 | dstick 2 @ z3
 
+# `graphene` is used to produce `ctube` and `solarsail` simultaneously, so 
+# it will split into 2 different materials to handle the distribution process.
+# Note that in some extreme case, complexity of this algorithm would inflate into 
+# exponential as it actually enumerates each path to a source. But in 
+# Dyson Sphere Program it's OK.
+process graphene 1, photonmerger 1 | made 4 | solarsail 2 @ z3
 process graphene 3, ti 1 | che 4 | ctube 2 @ z3
-# process cs 2 | che 4 | ctube 2 @ z3
+
 process ctube 4, tialloy 1, si 1 | made 6 | framematerial 1 @ z3
 process framematerial 3, solarsail 3, cpu 3 | made 8 | dysonmodule 1 @ z3
 process dysonmodule 2, dstick 4, qc 2 | made 6 | rocket 1 @ z3
 
 source glass, iron, copper, ch4, h, ti, tialloy, si, cs, qc, electurbine, magnet, graphite, hh, cpu
-product rocket 2, solarsail 6
+product rocket 2
+
