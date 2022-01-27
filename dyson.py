@@ -379,14 +379,34 @@ class Dyson:
             if not sym in self._successor:
                 continue
 
+            remaining_rate = None
+            if max_p_rate is not None:
+                remaining_rate = max_p_rate
+            succ_count = len(self._successor[sym])
+
+            successor = []
             for succ_sym, succ_z in self._successor[sym]:
                 succ_def = self._def[succ_sym]
-                if max_p_rate is not None:
+                max_succ_machine_rate = succ_def.max_rate_from_machine
+                assert max_succ_machine_rate is not None, "{} -> {}".format(
+                    sym, succ_sym)
+                max_succ_consume_rate = max_succ_machine_rate * succ_z
+                successor.append((succ_sym, succ_z, max_succ_consume_rate))
+            successor.sort(key=lambda x: x[2])  # sort by consume_rate asc
+
+            for succ_sym, succ_z, max_consume_rate in successor:
+                succ_def = self._def[succ_sym]
+
+                if remaining_rate is not None:
+                    this_rate = remaining_rate / succ_count
+                    this_rate = min(this_rate, max_consume_rate)
                     succ_def.max_rate_from_material = min_with_none(
-                        succ_def.max_rate_from_material, max_p_rate / succ_z)
+                        succ_def.max_rate_from_material, this_rate / succ_z)
+                    remaining_rate -= this_rate
+                    succ_count -= 1
+
                 assert succ_def.process is not None, succ_sym
                 process = self._process[succ_def.process]
-
                 if not succ_sym in predecessor_visited:
                     predecessor_visited[succ_sym] = 0
                 predecessor_visited[succ_sym] += 1
