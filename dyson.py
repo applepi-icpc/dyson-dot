@@ -111,6 +111,14 @@ def min_with_none(*s: T.Tuple[T.Optional[float]]) -> T.Optional[float]:
     return result
 
 
+def equal_with_none(a: T.Optional[float], b: T.Optional[float]):
+    if a is None or b is None:
+        if a is None and b is None:
+            return True
+        return False
+    return abs(a - b) < 1e-8
+
+
 class Dyson:
     def __init__(self):
         self._def = {}  # type: T.Dict[str, Def]
@@ -432,9 +440,10 @@ class Dyson:
                                              def_.max_rate_from_machine,
                                              def_.max_rate_from_consumer)
 
-            if def_.actual_rate == def_.max_rate_from_machine:
+            if equal_with_none(def_.actual_rate, def_.max_rate_from_machine):
                 def_.state = 2
-            elif def_.actual_rate == def_.max_rate_from_material:
+            elif equal_with_none(def_.actual_rate,
+                                 def_.max_rate_from_material):
                 def_.state = 1
             else:
                 def_.state = 3
